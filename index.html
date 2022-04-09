@@ -21,8 +21,8 @@
         #stack {
             flex: 2;
             padding-top: 5px;
-            padding-right: 25px;
-            margin-bottom: 15px;
+            /* padding-right: 25px; */
+            /* margin-bottom: 15px; */
             max-height: 100vh;
             overflow-y: auto;
         }
@@ -33,7 +33,7 @@
         }
 
         div {
-            outline: 1px solid purple;
+            /* outline: 1px solid purple; */
         }
 
         .block {
@@ -59,9 +59,14 @@
             outline: 2px solid red; */
         }
 
+        .esp-zone.unselected,
+        .ebp-zone.unselected {
+            opacity: 0;
+        }
+
         .esp-zone.unselected:hover,
         .ebp-zone.unselected:hover {
-            color: red;
+            opacity: 0.5;
         }
 
         .arrow {
@@ -84,6 +89,7 @@
             font-family: system-ui;
 
             outline: 4px solid black;
+            cursor: pointer;
         }
 
         .fake-block {
@@ -104,6 +110,14 @@
             justify-content: center;
             align-items: center;
         }
+
+        .controlButtons {
+            display: flex;
+        }
+
+        .controlButtons button {
+            flex: 1;
+        }
     </style>
 </head>
 
@@ -112,53 +126,49 @@
         <div id="stack">
             <!-- Fake block -->
             <div class="fake-block">
-                <div class="esp-zone" :style="computeESPStyle(-1)">
+                <div :class="computeESPClass(-1)" @click="setESP(-1)">
                     <div>ESP</div>
                     <div class="arrow">⇨</div>
                 </div>
                 <div class="fake-value-zone"></div>
-                <div class="ebp-zone" :style="computeEBPStyle(-1)">
+                <div :class="computeEBPClass(-1)" @click="setEBP(-1)">
                     <div class="arrow">⇦</div>
                     <div>EBP</div>
                 </div>
             </div>
             <!-- Stack -->
             <div class="block" v-for="(block, index) in stack.blocks" :key="index">
-                <div class="esp-zone">
-                    <div :style="computeESPStyle(index)">ESP</div>
-                    <div :style="computeESPStyle(index)" class="arrow">⇨</div>
+                <div :class="computeESPClass(index)" @click="setESP(index)">
+                    <div>ESP</div>
+                    <div class="arrow">⇨</div>
                 </div>
-                <div class="value-zone" :style="{backgroundColor: block.colour, color: adaptedColour(block.colour)}">
+                <div class="value-zone" :style="{backgroundColor: block.colour, color: adaptedColour(block.colour)}"
+                    @click="changeBlockColour(block)">
                     <div style="margin-bottom: 5px">{{block.value}}</div>
                 </div>
-                <div class="ebp-zone">
-                    <div :style="computeEBPStyle(index)" class="arrow">⇦</div>
-                    <div :style="computeEBPStyle(index)">EBP</div>
+                <div :class="computeEBPClass(index)" @click="setEBP(index)">
+                    <div class="arrow">⇦</div>
+                    <div>EBP</div>
                 </div>
             </div>
         </div>
+        <!-- Controls -->
         <div id="controls">
             <div>
-                <!-- <input id="stack_title" placeholder="Stack title" />
-                <button id="create_stack_button">Create Stack</button>
+                <input v-model="newValue" @keydown.enter="pushValueOnStack" placeholder="New cell value"
+                    style="width: 100%" />
+            </div>
+            <div class="controlButtons" style="display: flex">
+                <button :disabled="newValue === ''" @click="pushValueOnStack">Push</button>
+                <button :disabled="stack.blocks.length === 0" @click="popValueFromStack()">Pop</button>
+                <button :disabled="stack.blocks.length === 0" @click="clearStack()">Clear stack</button>
             </div>
             <div>
-                <label>Change stack:</label>
-                <select id="stacks_options">
-                </select>
-            </div> -->
-                <div>
-                    <input v-model="newValue" @keydown.enter="pushValueOnStack" placeholder="New cell value" />
-                    <button :disabled="newValue === ''" @click="pushValueOnStack">Push</button>
-                    <button>Pop</button>
-                </div>
-                <div>
-                    <input type="color" v-model="currentColour" style="margin-right: 5px" />
-                    <button class="color_button" v-for="colour in lastUsedColours" :key="colour"
-                        :style="{backgroundColor: colour}" @click="currentColour = colour">
-                        &nbsp;&nbsp;
-                    </button>
-                </div>
+                <input type="color" v-model="currentColour" style="margin-right: 5px" />
+                <button class="color_button" v-for="colour in lastUsedColours" :key="colour"
+                    :style="{backgroundColor: colour}" @click="currentColour = colour">
+                    &nbsp;&nbsp;
+                </button>
             </div>
         </div>
     </div>
@@ -166,10 +176,7 @@
         Vue.createApp({
             data: () => ({
                 stack: {
-                    blocks: [
-                        // { value: "some value", colour: "#FFFFFF" },
-                        // { value: "some value 2", colour: "#FFFFFF" }
-                    ],
+                    blocks: [],
                     ebp: -1,
                     esp: -1
                 },
@@ -178,6 +185,14 @@
                 lastUsedColours: ["#FFFFFF", "#ff5954", "#00FF00", "#6ba3ff"]
             }),
             methods: {
+                clearStack() {
+                    this.stack = {
+                        blocks: [],
+                        ebp: -1,
+                        esp: -1
+                    }
+                },
+
                 pushValueOnStack() {
                     if (this.newValue === "") return;
                     this.stack.blocks.unshift({ value: this.newValue, colour: this.currentColour });
@@ -186,8 +201,21 @@
                     this.setLastUsedColour(this.currentColour);
                 },
 
+                popValueFromStack() {
+                    if (this.stack.blocks.length === 0) return;
+                    this.stack.blocks.shift();
+                    if (this.stack.ebp > -1) this.stack.ebp = this.stack.ebp - 1;
+                    if (this.stack.esp > -1) this.stack.esp = this.stack.esp - 1;
+                },
+
+                changeBlockColour(block) {
+                    block.colour = this.currentColour;
+                    this.setLastUsedColour(this.currentColour);
+                },
+
                 setLastUsedColour(colour) {
-                    this.lastUsedColours = this.lastUsedColours.filter(c => c !== colour);
+                    if (this.lastUsedColours.includes(colour)) return;
+
                     this.lastUsedColours.unshift(colour);
                     this.lastUsedColours = this.lastUsedColours.slice(0, 10);
                 },
@@ -210,13 +238,19 @@
                     return (L > 0.179) ? darkColor : lightColor;
                 },
 
-                computeESPStyle(index) {
-                    return { opacity: index === this.stack.esp ? '1' : '0.1' }
+                computeEBPClass(index) {
+                    return ["ebp-zone", index === this.stack.ebp ? "selected" : "unselected"]
                 },
-
-                computeEBPStyle(index) {
-                    return { opacity: index === this.stack.ebp ? '1' : '0.1' }
+                computeESPClass(index) {
+                    return ["esp-zone", index === this.stack.esp ? "selected" : "unselected"]
+                },
+                setEBP(index) {
+                    this.stack.ebp = index;
+                },
+                setESP(index) {
+                    this.stack.esp = index;
                 }
+
             }
         }).mount('#app')
     </script>
