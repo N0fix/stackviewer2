@@ -1,0 +1,225 @@
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
+    <script src="https://unpkg.com/vue@3"></script>
+    <style>
+        #app {
+            width: 100vw;
+            display: flex;
+            height: 100vh;
+        }
+
+        body {
+            margin: 0px;
+            background: #202020;
+            color: #F1F1F1;
+            font-size: 25px;
+        }
+
+        #stack {
+            flex: 2;
+            padding-top: 5px;
+            padding-right: 25px;
+            margin-bottom: 15px;
+            max-height: 100vh;
+            overflow-y: auto;
+        }
+
+        #controls {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        div {
+            outline: 1px solid purple;
+        }
+
+        .block {
+            display: flex;
+            justify-content: center;
+            height: 64px;
+        }
+
+        .esp-zone,
+        .ebp-zone {
+            height: 64px;
+            min-width: 64px;
+            flex-shrink: 0;
+            font-size: 24px;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            margin-top: 30px;
+            cursor: pointer;
+            /* background-color: rgb(151, 86, 0);
+            outline: 2px solid red; */
+        }
+
+        .esp-zone.unselected:hover,
+        .ebp-zone.unselected:hover {
+            color: red;
+        }
+
+        .arrow {
+            font-size: 50px;
+            padding-left: 5px;
+            padding-right: 5px;
+        }
+
+        .block>.value-zone {
+            min-width: 100px;
+            padding-left: 20px;
+            padding-right: 20px;
+            flex: 1 200px;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            text-align: center;
+            font-family: system-ui;
+
+            outline: 4px solid black;
+        }
+
+        .fake-block {
+            display: flex;
+            justify-content: center;
+            height: 0px;
+            margin-top: -32px;
+            margin-bottom: 64px;
+        }
+
+        .fake-block>.fake-value-zone {
+            min-width: 100px;
+            padding-left: 20px;
+            padding-right: 20px;
+            flex: 1 200px;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div id="stack">
+            <!-- Fake block -->
+            <div class="fake-block">
+                <div class="esp-zone" :style="computeESPStyle(-1)">
+                    <div>ESP</div>
+                    <div class="arrow">⇨</div>
+                </div>
+                <div class="fake-value-zone"></div>
+                <div class="ebp-zone" :style="computeEBPStyle(-1)">
+                    <div class="arrow">⇦</div>
+                    <div>EBP</div>
+                </div>
+            </div>
+            <!-- Stack -->
+            <div class="block" v-for="(block, index) in stack.blocks" :key="index">
+                <div class="esp-zone">
+                    <div :style="computeESPStyle(index)">ESP</div>
+                    <div :style="computeESPStyle(index)" class="arrow">⇨</div>
+                </div>
+                <div class="value-zone" :style="{backgroundColor: block.colour, color: adaptedColour(block.colour)}">
+                    <div style="margin-bottom: 5px">{{block.value}}</div>
+                </div>
+                <div class="ebp-zone">
+                    <div :style="computeEBPStyle(index)" class="arrow">⇦</div>
+                    <div :style="computeEBPStyle(index)">EBP</div>
+                </div>
+            </div>
+        </div>
+        <div id="controls">
+            <div>
+                <!-- <input id="stack_title" placeholder="Stack title" />
+                <button id="create_stack_button">Create Stack</button>
+            </div>
+            <div>
+                <label>Change stack:</label>
+                <select id="stacks_options">
+                </select>
+            </div> -->
+                <div>
+                    <input v-model="newValue" @keydown.enter="pushValueOnStack" placeholder="New cell value" />
+                    <button :disabled="newValue === ''" @click="pushValueOnStack">Push</button>
+                    <button>Pop</button>
+                </div>
+                <div>
+                    <input type="color" v-model="currentColour" style="margin-right: 5px" />
+                    <button class="color_button" v-for="colour in lastUsedColours" :key="colour"
+                        :style="{backgroundColor: colour}" @click="currentColour = colour">
+                        &nbsp;&nbsp;
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        Vue.createApp({
+            data: () => ({
+                stack: {
+                    blocks: [
+                        // { value: "some value", colour: "#FFFFFF" },
+                        // { value: "some value 2", colour: "#FFFFFF" }
+                    ],
+                    ebp: -1,
+                    esp: -1
+                },
+                newValue: "",
+                currentColour: "#FFFFFF",
+                lastUsedColours: ["#FFFFFF", "#ff5954", "#00FF00", "#6ba3ff"]
+            }),
+            methods: {
+                pushValueOnStack() {
+                    if (this.newValue === "") return;
+                    this.stack.blocks.unshift({ value: this.newValue, colour: this.currentColour });
+                    this.newValue = "";
+                    this.stack.ebp = this.stack.ebp + 1;
+                    this.setLastUsedColour(this.currentColour);
+                },
+
+                setLastUsedColour(colour) {
+                    this.lastUsedColours = this.lastUsedColours.filter(c => c !== colour);
+                    this.lastUsedColours.unshift(colour);
+                    this.lastUsedColours = this.lastUsedColours.slice(0, 10);
+                },
+
+                adaptedColour(bgColor) {
+                    const lightColor = "#FFFFFF";
+                    const darkColor = "#000000";
+                    let color = (bgColor.charAt(0) === '#') ? bgColor.substring(1, 7) : bgColor;
+                    let r = parseInt(color.substring(0, 2), 16); // hexToR
+                    let g = parseInt(color.substring(2, 4), 16); // hexToG
+                    let b = parseInt(color.substring(4, 6), 16); // hexToB
+                    let uicolors = [r / 255, g / 255, b / 255];
+                    let c = uicolors.map((col) => {
+                        if (col <= 0.03928) {
+                            return col / 12.92;
+                        }
+                        return Math.pow((col + 0.055) / 1.055, 2.4);
+                    });
+                    let L = (0.2126 * c[0]) + (0.7152 * c[1]) + (0.0722 * c[2]);
+                    return (L > 0.179) ? darkColor : lightColor;
+                },
+
+                computeESPStyle(index) {
+                    return { opacity: index === this.stack.esp ? '1' : '0.1' }
+                },
+
+                computeEBPStyle(index) {
+                    return { opacity: index === this.stack.ebp ? '1' : '0.1' }
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+
+</html>
